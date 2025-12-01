@@ -27,39 +27,27 @@ Tracking the number of clusters is important because each cluster is an independ
 **Unit** : Count (Number of running pods per entity)
 Datadog Aggregation Logic
 
-**Datadog Aggregation Logic:**
-
-- **avg**: takes the average of the pod running metric per host or per scope
-
-- **count_nonzero**: counts how many entities return a non-zero value
-
-- In this dashboard, each “cluster” is represented by at least one running pod, therefore counting non-zero values returns the number of clusters Datadog detects.
-
 ### Nodes
 
 Nodes are the individual worker machines (VMs or EC2 instances) in a Kubernetes cluster where pods actually run. Monitoring node count ensures the cluster has enough capacity and helps detect scaling events, failures, or missing nodes.
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.node.status` (implicitly through Datadog’s internal rollups)
+- Metrics used: `kubernetes_state.node.count`
 
-**Query:**
+- **Query:**
 
 ```
-count_nonzero(avg:kubernetes_state.node.status{status:ready})
+sum:kubernetes_state.node.count{*}
 ```
 
 **Type:** Gauge
 
-**Unit:** Count (number of nodes reporting Ready=true)
+**Unit:** Count (number of nodes reporting )
 
-**Datadog Aggregation Logic:**
+**Tags**:`kernel_version` `os_image` `container_runtime_version` `kubelet_version`.
 
-- `avg:` normalizes node readiness values
-- `count_nonzero:` counts how many nodes are reporting as ready
-- Each ready node contributes a “1” value → aggregated into total node count
-
----
+**Description**: Number of nodes
 
 ### Namespaces
 
@@ -67,23 +55,19 @@ Namespaces logically group Kubernetes resources within a cluster. They help sepa
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.namespace.count`
+- Metrics used: `kubernetes.pods.running`
 
 **Query:**
 
 ```
-count:kubernetes_state.namespace.count{*}
+count_nonzero(avg:kubernetes.pods.running{*})
 ```
 
 **Type:** Gauge
 
 **Unit:** Count (Number of namespaces)
 
-**Datadog Aggregation Logic:**
-
-- `count:` sums all discovered namespaces
-- Each namespace contributes a single value
-- Total shows the number of active namespaces in the cluster
+**Description:** The number of running pods
 
 ---
 
@@ -93,22 +77,22 @@ A DaemonSet ensures a specific pod runs on **every node** (or a selected group o
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.daemonset.count`
+- Metrics used: `kubernetes_state.daemonset.desired`
 
 **Query:**
 
 ```
-count:kubernetes_state.daemonset.count{*}
+count_nonzero(avg:kubernetes_state.daemonset.desired{*})
 ```
 
 **Type:** Gauge
 
 **Unit:** Count (Number of daemonsets)
 
-**Aggregation Logic:**
+**Description:**
+The number of nodes that should be running the daemon pod.
 
-- Datadog counts all daemonsets discovered via kube-state-metrics
-- Provides a global count of daemonset resources in the cluster
+**Tags:**`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -123,17 +107,17 @@ Services provide stable networking endpoints in Kubernetes and load-balance traf
 **Query:**
 
 ```
-count:kubernetes_state.service.count{*}
+sum:kubernetes_state.service.count{*}
 ```
 
 **Type:** Gauge
 
 **Unit:** Count (Number of services)
 
-**Aggregation Logic:**
+**Description:**
+Number of services.
 
-- Datadog sums every discovered service
-- Useful for cluster topology understanding and monitoring changes
+**Tags:**`kube_namespace` `type`.
 
 ---
 
@@ -143,23 +127,22 @@ A Deployment manages replicas of stateless applications. It ensures rollout, rol
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.deployment.count`
+- Metrics used: `kubernetes_state.deployment.replicas`
 
 **Query:**
 
 ```
-count:kubernetes_state.deployment.count{*}
+count_nonzero(avg:kubernetes_state.deployment.replicas{*})
 ```
 
 **Type:** Gauge
 
 **Unit:** Count (Number of deployments)
 
-**Aggregation Logic:**
+**Description:**
+The number of replicas per deployment.
 
-- Datadog counts all deployment resources
-- Derived from kube-state-metrics
-- Represents total workloads controlled by deployments
+**Tags:**`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -169,23 +152,20 @@ Pods are the smallest Kubernetes execution units containing one or more containe
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.count`
+- Metrics used: `kubernetes_state.pod.running`
 
 **Query:**
 
 ```
-sum:kubernetes_state.pod.count{*}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type:** Gauge
 
 **Unit:** Count (Total number of pods)
 
-**Aggregation Logic:**
-
-- Sums all pods across all namespaces
-- High pod count indicates high workload density
-- Helps correlate with cluster resource consumption
+**Description:**
+The number of running pods
 
 ---
 
@@ -207,10 +187,8 @@ sum:kubernetes.containers.running{*}
 
 **Unit:** Count (Number of running containers)
 
-**Aggregation Logic:**
-
-- Datadog sums all running containers from kubelet
-- Container count > pod count (because pods can have multiple containers)
+**Description:**
+The number of running containers
 
 ---
 
@@ -283,11 +261,9 @@ sum:kubernetes_state.pod.ready{*} by {node}
 
 **Unit** : Count (Number of ready pods per node)
 
-**Datadog Aggregation Logic:**
+**Description:** Describes whether the pod is ready to serve requests.
 
-- **sum**: adds up all pods in Ready state for each node
-- Grouping by **{node}** distributes ready pod counts across all nodes
-- Helps determine node stability and workload health per node
+**Tags:**`node` `kube_namespace` `pod_name` `condition` (`env` `service` `version` from standard labels
 
 ---
 
@@ -295,23 +271,19 @@ sum:kubernetes_state.pod.ready{*} by {node}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.running`
+- Metrics used: `sum:kubernetes.pods.running`
 
 **query** :
 
 ```
-avg:kubernetes_state.pod.running{*} by {node}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of running pods per node)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: smooths the running pod count per node over time
-- Grouping by **{node}** shows pod distribution patterns
-- Helps detect overloaded or underutilized nodes
+**Description:** The number of running pods
 
 ---
 
@@ -324,18 +296,14 @@ avg:kubernetes_state.pod.running{*} by {node}
 **query** :
 
 ```
-sum:kubernetes_state.pod.running{*} by {kube_namespace}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of running pods per namespace)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: adds all running pods grouped by namespace
-- Shows workload separation based on application or team
-- Helps identify high-density namespaces
+**Description:** The number of running pods
 
 ---
 
@@ -343,23 +311,19 @@ sum:kubernetes_state.pod.running{*} by {kube_namespace}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.running`
+- Metrics used: `kubernetes.pod.running`
 
 **query** :
 
 ```
-avg:kubernetes_state.pod.running{*} by {kube_namespace}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Running pods over time per namespace)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: provides a smooth time-series of running pods
-- Grouping by **{kube_namespace}** shows pod scaling trends
-- Helps detect changes in workload patterns across namespaces
+**Description:** The number of running pods
 
 ---
 
@@ -369,8 +333,7 @@ avg:kubernetes_state.pod.running{*} by {kube_namespace}
 
 - Metrics used:
 
-  - `kubernetes_state.pod.status_phase` with phase: failed
-  - `kubernetes_state.pod.status_phase` with phase: pending
+  - `kubernetes_state.pod.status_phase`
 
 **query** :
 (Example used by Datadog)
@@ -378,24 +341,17 @@ avg:kubernetes_state.pod.running{*} by {kube_namespace}
 Failed pods:
 
 ```
-sum:kubernetes_state.pod.status_phase{phase:failed} by {kube_namespace}
-```
-
-Pending pods:
-
-```
-sum:kubernetes_state.pod.status_phase{phase:pending} by {kube_namespace}
+sum:kubernetes_state.pod.status_phase{!pod_phase:running,!pod_phase:succeeded}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Pods in failed or pending states per namespace)
 
-**Datadog Aggregation Logic:**
+**Description:**
+The pods current phase.
 
-- **sum**: counts pods that are in failure or pending phases
-- Grouping by namespace highlights problematic namespaces
-- Used to detect failures or deployment issues
+**Tags:**`node` `kube_namespace` `pod_name` `pod_phase` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -403,24 +359,22 @@ sum:kubernetes_state.pod.status_phase{phase:pending} by {kube_namespace}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.container.waiting{reason:CrashLoopBackOff}`
-  (depending on Datadog version)
+- Metrics used: `kubernetes_state.container.status_report.count.waiting`
 
 **query** :
 
 ```
-sum:kubernetes_state.pod.container.waiting{reason:CrashLoopBackOff} by {pod_name}
+sum:kubernetes_state.container.status_report.count.waiting{reason:crashloopbackoff}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of containers in CrashLoopBackOff per pod)
 
-**Datadog Aggregation Logic:**
+**Description:**
+Describes the reason the container is currently in waiting state.
 
-- **sum**: counts containers stuck in CrashLoopBackOff state
-- Grouping by **{pod_name}** identifies specific failing pods
-- Helps detect repeated crashes and application startup failures
+**Tags:** `kube_namespace` `pod_name` `kube_container_name` `reason` (`env` `service` `version` from standard labels).
 
 ![alt text](./screenshots/overview/image-81.png)
 
@@ -441,6 +395,11 @@ sum:kubernetes_state.daemonset.ready{*}
 **Type** : Gauge
 
 **Unit** : Count (Number of ready DaemonSet pods)
+
+**Description:**
+The number of nodes that should be running the daemon pod and have one or more of the daemon pod running and ready.
+
+**Tags:** `kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels).
 
 **Datadog Aggregation Logic:**
 
@@ -466,6 +425,10 @@ sum:kubernetes_state.daemonset.desired{*}
 
 **Unit** : Count (Desired number of DaemonSet pods)
 
+**Description:** The number of nodes that should be running the daemon pod.
+
+**Tags:**`kube_daemon_set` `kube_namespace` (`env` `service` `version` from standard labels)
+
 **Datadog Aggregation Logic:**
 
 - **sum**: adds desired pod count for each DaemonSet
@@ -490,11 +453,9 @@ sum:kubernetes_state.deployment.replicas_desired{*}
 
 **Unit** : Count (Desired replicas for deployments)
 
-**Datadog Aggregation Logic:**
+**Description:** Number of desired pods for a deployment.
 
-- **sum**: adds all desired replica counts across deployments
-- Desired value represents the expected pod count per deployment
-- Used to ensure scaling configuration is correct
+**Tags:**`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
 
 ### **Deployments – Pods available**
 
@@ -512,11 +473,9 @@ sum:kubernetes_state.deployment.replicas_available{*}
 
 **Unit** : Count (Available replicas)
 
-**Datadog Aggregation Logic:**
+**Description:** The number of available replicas per deployment.
 
-- **sum**: adds replicas that are currently available across all deployments
-- Shows readiness and health of application deployments
-- Difference from desired indicates rollout or issues
+**Tags:**`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
 
 ### **Deployments – Pods unavailable**
 
@@ -534,10 +493,9 @@ sum:kubernetes_state.deployment.replicas_unavailable{*}
 
 **Unit** : Count (Unavailable replicas)
 
-**Datadog Aggregation Logic:**
+**Description:** The number of unavailable replicas per deployment.
 
-- **sum**: counts pods that are expected but not available
-- Helps detect deployment failures, rollouts, or scheduling problems
+**Tags:**`kube_deployment` `kube_namespace` (`env` `service` `version` from standard labels).
 
 ## ReplicaSets
 
@@ -557,10 +515,9 @@ sum:kubernetes_state.replicaset.replicas_ready{*}
 
 **Unit** : Count (Number of ready ReplicaSet pods)
 
-**Datadog Aggregation Logic:**
+**Description:** The number of ready replicas per ReplicaSet.
 
-- **sum**: counts all pods in _Ready_ state from ReplicaSets
-- Used to validate ReplicaSet health (parent of deployments)
+**Tags:** `kube_namespace` `kube_replica_set` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -568,22 +525,21 @@ sum:kubernetes_state.replicaset.replicas_ready{*}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.replicaset.replicas_unready`
+- Metrics used: `kubernetes_state.replicaset.replicas_desired`
 
 **query** :
 
 ```
-sum:kubernetes_state.replicaset.replicas_unready{*}
+sum:kubernetes_state.replicaset.replicas_desired{*} - sum:kubernetes_state.replicaset.replicas_ready{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Pods not ready in ReplicaSets)
 
-**Datadog Aggregation Logic:**
+**Description:** Number of desired pods for a ReplicaSet.
 
-- **sum**: returns pods that are not yet ready
-- Useful during rollouts, restarts, or failures
+**Tags:**`kube_namespace` `kube_replica_set` (`env` `service` `version` from standard labels).
 
 ## Containers
 
@@ -591,24 +547,22 @@ sum:kubernetes_state.replicaset.replicas_unready{*}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.containers.running`
+- Metrics used: `kubsum:kubernetes_state.container.running`
   (plus internal Datadog container-status metrics depending on version)
 
 **query** :
 
 ```
-avg:kubernetes.containers.running{*}
+sum:kubernetes_state.container.running{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of running containers)
 
-**Datadog Aggregation Logic:**
+**Description:** Describes whether the container is currently in running state.
 
-- **avg**: smooths container running count across the cluster
-- Shows the total active container workload over time
-- Useful for workload density and cluster usage patterns
+**Tags:**`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
 
 ## Resource utilization
 
@@ -618,28 +572,21 @@ avg:kubernetes.containers.running{*}
 
 **Metric(s):**
 
-- Metrics used: `system.cpu.user`, `system.cpu.system`, `system.cpu.idle`, combined internally by Datadog into a CPU utilization percentage
+- Metrics used: `kubernetes.cpu.usage.total`
 
 **query** :
 
 ```
-avg:system.cpu.user{*} by {node}
-+
-avg:system.cpu.system{*} by {node}
+kubernetes.cpu.usage.total
 ```
 
 (Displayed via Datadog’s infrastructure map visualization)
 
 **Type** : Gauge
 
-**Unit** : Percentage (% CPU utilization)
+**Unit** : nanocore
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages CPU usage metrics per node
-- CPU utilization combines user + system CPU time
-- The infrastructure map colors each node based on utilization
-- Helps identify overloaded or underutilized nodes immediately
+**Description:** The number of cores used
 
 ---
 
@@ -652,18 +599,14 @@ avg:system.cpu.system{*} by {node}
 **query** :
 
 ```
-sum:kubernetes.cpu.requests{*} by {node}
+sum:kubernetes.cpu.requests{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Cores (CPU requests in cores)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: adds all pod CPU _requested_ values per node
-- Shows how much CPU is _requested_, not used
-- Helps identify scheduling pressure or over-commit situations
+**Description:** The requested cpu cores
 
 ---
 
@@ -671,25 +614,21 @@ sum:kubernetes.cpu.requests{*} by {node}
 
 **Metric(s):**
 
-- Metrics used: `container.cpu.usage`
+- Metrics used: `kubernetes.cpu.usage.total`
 
 **query** :
 
 ```
-top(container.cpu.usage{*} by {pod_name}, 10)
+sum:kubernetes.cpu.usage.total{!pod_name:no_pod}
 ```
 
 (Exact query may vary but Datadog uses a **top list** function)
 
 **Type** : Gauge
 
-**Unit** : Millicores
+**Unit** : nanocore
 
-**Datadog Aggregation Logic:**
-
-- **top()**: sorts pods by CPU consumption, highest first
-- **container.cpu.usage** reports real CPU usage (not requests)
-- Helps find CPU hotspot pods or noisy neighbors quickly
+**Description:** The number of cores used
 
 ---
 
@@ -702,7 +641,7 @@ top(container.cpu.usage{*} by {pod_name}, 10)
 **query** :
 
 ```
-avg:system.mem.used{*} by {node}
+sum:kubernetes.memory.usage{*} by {host}
 ```
 
 (Display is a node-map heat visualization)
@@ -712,10 +651,6 @@ avg:system.mem.used{*} by {node}
 **Unit** : Bytes (or % depending on UI)
 
 **Datadog Aggregation Logic:**
-
-- **avg**: averages memory usage per node
-- Infrastructure map shades nodes based on memory pressure
-- Quickly shows which nodes are approaching memory limits
 
 ---
 
@@ -728,18 +663,14 @@ avg:system.mem.used{*} by {node}
 **query** :
 
 ```
-sum:kubernetes.memory.requests{*} by {node}
+sum:kubernetes.memory.requests{*}
 ```
 
 **Type** : Gauge
 
-**Unit** : GiB (Gigabytes of memory requested)
+**Unit** : byte (Gigabytes of memory requested)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: adds all pod memory _requests_ on each node
-- Shows the guaranteed memory resource reservations
-- Helps identify nodes that are overcommitted
+**Description:** The requested memory
 
 ---
 
@@ -747,23 +678,19 @@ sum:kubernetes.memory.requests{*} by {node}
 
 **Metric(s):**
 
-- Metrics used: `container.memory.usage`
+- Metrics used: `kubernetes.memory.usage`
 
 **query** :
 
 ```
-top(container.memory.usage{*} by {pod_name}, 10)
+sum:kubernetes.memory.usage{!pod_name:no_pod}
 ```
 
 **Type** : Gauge
 
-**Unit** : GiB (Memory usage per pod)
+**Unit** : Byte (Memory usage per pod)
 
-**Datadog Aggregation Logic:**
-
-- **top()**: selects top pods based on highest memory usage
-- Real-time memory consumption per pod container
-- Helps detect runaway pods or memory leaks
+**Description:** The amount of memory used
 
 ## Disk I/O & Network
 
@@ -773,46 +700,37 @@ top(container.memory.usage{*} by {pod_name}, 10)
 
 **Metric(s):**
 
-- Metrics used: `system.net.bytes_rcvd`
+- Metrics used: `kubernetes.network.rx_bytes`
 
 **query** :
 
 ```
-avg:system.net.bytes_rcvd{*} by {host}
+sum:kubernetes.network.rx_bytes{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Megabytes/second
+**Unit** : byte per second
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages incoming network bytes per node
-- `bytes_rcvd` is converted to MB/s by Datadog UI
-- Shows total incoming network traffic per node
-- Helps identify nodes under heavy ingress or network load
+**Description:** The amount of bytes per second received
 
 ### **Network out per node**
 
 **Metric(s):**
 
-- Metrics used: `system.net.bytes_sent`
+- Metrics used: `kubernetes.network.tx_bytes`
 
 **query** :
 
 ```
-avg:system.net.bytes_sent{*} by {host}
+sum:kubernetes.network.tx_bytes{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Megabytes/second
+**Unit** : byte per second
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages outgoing network bytes per node
-- `bytes_sent` is converted to MB/s by Datadog
-- Helps detect nodes generating heavy outbound traffic
+**Description:** The amount of bytes per second transmitted
 
 ### **Network errors per node**
 
@@ -830,19 +748,13 @@ sum:system.net.errors{*} by {host}
 
 **Unit** : Errors/second
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts network interface errors per node
-- Indicates packet drops, interface failures, or network congestion
-- Useful to detect faulty networking hardware or CNI issues
-
 ---
 
 ### **Network errors per pod**
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.network.errors`
+- Metrics used: `kubernetes.network.rx_errors` and `kubernetes.network.tx_errors`
 
 **query** :
 
@@ -854,35 +766,25 @@ sum:kubernetes.network.errors{*} by {pod_name}
 
 **Unit** : Errors/second
 
-**Datadog Aggregation Logic:**
-
-- **sum**: adds pod-level network errors
-- Highlights pods experiencing packet loss or CNI-level failures
-- Useful for diagnosing network instability at application level
-
 ---
 
 ### **Disk writes per node**
 
 **Metric(s):**
 
-- Metrics used: `system.disk.write_bytes`
+- Metrics used: `kubernetes.io.write_bytes`
 
 **query** :
 
 ```
-avg:system.disk.write_bytes{*} by {host}
+sum:kubernetes.io.write_bytes{*}
 ```
 
-**Type** : Gauge (time series)
+**Type** : byte (time series)
 
 **Unit** : Megabytes/second
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages write-byte throughput per node
-- Datadog converts bytes → MB/s in the UI
-- Helps detect high disk write workloads (databases, logging, caching)
+**Description:** The amount of bytes written to the disk
 
 ---
 
@@ -890,20 +792,16 @@ avg:system.disk.write_bytes{*} by {host}
 
 **Metric(s):**
 
-- Metrics used: `system.disk.read_bytes`
+- Metrics used: `kubernetes.io.read_bytes`
 
 **query** :
 
 ```
-avg:system.disk.read_bytes{*} by {host}
+sum:kubernetes.io.read_bytes{*}
 ```
 
-**Type** : Gauge (time series)
+**Type** : byte (time series)
 
 **Unit** : Megabytes/second
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages read-byte throughput per node
-- Shows disk read pressure
-- Useful for identifying read-heavy workloads like analytics, ETL, or database queries
+**Description:** The amount of bytes read from the disk

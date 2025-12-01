@@ -18,23 +18,21 @@ You can paste this directly into your analysis document.
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.node.status{status:ready}`
+- Metrics used: `kubernetes_state.node.count`
 
 **query** :
 
 ```
-count_nonzero(max:kubernetes_state.node.status{status:ready})
+sum:kubernetes_state.node.count{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of Ready nodes)
 
-**Datadog Aggregation Logic:**
+**Description:** Number of nodes.
 
-- **max**: returns 1 if node is Ready, 0 if not
-- **count_nonzero**: counts all nodes reporting Ready status
-- Represents the number of active, healthy nodes in the cluster
+**Tags:** `kernel_version` `os_image` `container_runtime_version` `kubelet_version`.
 
 ---
 
@@ -42,22 +40,21 @@ count_nonzero(max:kubernetes_state.node.status{status:ready})
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.cpu.capacity`
+- Metrics used: `kubernetes_state.node.cpu_capacity`
 
 **query** :
 
 ```
-sum:kubernetes.cpu.capacity{*}
+sum:kubernetes_state.node.cpu_capacity{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Cores (Total CPU capacity across all nodes)
 
-**Datadog Aggregation Logic:**
+**Description:** The CPU capacity of a node.
 
-- **sum**: adds total CPU capacity (in cores) from each node
-- Shows total available compute power in the entire cluster
+**Tags:**`node` `resource` `unit`.
 
 ---
 
@@ -65,22 +62,21 @@ sum:kubernetes.cpu.capacity{*}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.node.status{status:not_ready}`
+- Metrics used: `kubernetes_state.node.by_condition`
 
 **query** :
 
 ```
-sum:kubernetes_state.node.status{status:not_ready}
+sum:kubernetes_state.node.by_condition
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Nodes in NotReady state)
 
-**Datadog Aggregation Logic:**
+**Description:** The condition of a cluster node.
 
-- **sum**: counts all nodes marked in NotReady
-- This widget shows “No data” when all nodes are healthy
+**Tags:**`condition` `node` `status`.
 
 ---
 
@@ -88,22 +84,21 @@ sum:kubernetes_state.node.status{status:not_ready}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.memory.capacity`
+- Metrics used: `kubernetes_state.node.memory_capacity`
 
 **query** :
 
 ```
-sum:kubernetes.memory.capacity{*}
+sum:kubernetes_state.node.memory_capacity{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Gigabytes (GiB) of total cluster memory
 
-**Datadog Aggregation Logic:**
+**Description:** The memory capacity of a node.
 
-- **sum**: aggregates total memory capacity from all nodes
-- Represents the entire cluster’s memory availability
+**Tags:**`node` `resource` `unit`.
 
 ---
 
@@ -111,28 +106,21 @@ sum:kubernetes.memory.capacity{*}
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `system.mem.used`
-  - `system.mem.total`
+- Metrics used: `system.mem.pct_usable`
 
 Datadog computes memory % internally.
 
 **query** :
 
 ```
-100 * avg:system.mem.used{*} by {host} / avg:system.mem.total{*} by {host}
+1 - avg:system.mem.pct_usable{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Percentage (% memory utilization per node)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages memory usage and total memory per node
-- Datadog divides used over total to calculate percentage
-- Shows how much RAM each node is consuming
+**Description:** The amount of usable physical RAM as a fraction of the total.
 
 ---
 
@@ -151,18 +139,14 @@ Datadog computes CPU % internally.
 **query** :
 
 ```
-100 - avg:system.cpu.idle{*} by {host}
+100 - avg:system.cpu.idle{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Percentage (% CPU usage per node)
 
-**Datadog Aggregation Logic:**
-
-- CPU utilization = `100 - idle%`
-- **avg**: smooths CPU usage per node over the time window
-- Helps identify nodes under heavy compute load
+**Description:** Percent of time the CPU spent in an idle state.
 
 ---
 
@@ -182,12 +166,6 @@ count_nonzero(max:kubernetes.kubelet.check{status:ok})
 
 **Unit** : Count (Number of healthy kubelets)
 
-**Datadog Aggregation Logic:**
-
-- **max**: identifies whether each kubelet is healthy
-- **count_nonzero**: counts all kubelets reporting healthy status
-- Should match number of nodes if every node is healthy
-
 ---
 
 ### **Kubelet Ping**
@@ -206,12 +184,6 @@ count_nonzero(max:kubernetes.kubelet.ping{*})
 
 **Unit** : Count (Number of nodes responding to ping)
 
-**Datadog Aggregation Logic:**
-
-- **max**: returns non-zero if ping is successful
-- **count_nonzero**: counts responding kubelet agents
-- Indicates whether Datadog can reach kubelet on every node
-
 ---
 
 ## Node Condition
@@ -222,23 +194,21 @@ count_nonzero(max:kubernetes.kubelet.ping{*})
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.node.status`
+- Metrics used: `kubernetes_state.node.by_condition`
 
 **query** :
 
 ```
-sum:kubernetes_state.node.status{status:ready}
+sum:kubernetes_state.node.by_condition{status:true}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of nodes matching the condition)
 
-**Datadog Aggregation Logic:**
+**Description:** The condition of a cluster node.
 
-- **sum**: counts nodes whose condition is marked as `ready`
-- The dashboard shows “42 ready” → meaning 42 nodes are in Ready state
-- This represents the health of all nodes in the cluster
+**Tags:**`condition` `node` `status`.
 
 ---
 
@@ -246,12 +216,12 @@ sum:kubernetes_state.node.status{status:ready}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.node.status{status:ready}`
+- Metrics used: `kubernetes_state.node.by_condition`
 
 **query** :
 
 ```
-sum:kubernetes_state.node.status{status:ready}
+sum:kubernetes_state.node.by_condition{condition:ready,status:true}
 ```
 
 **Type** : Gauge (time series)
@@ -260,9 +230,9 @@ sum:kubernetes_state.node.status{status:ready}
 
 **Datadog Aggregation Logic:**
 
-- **sum**: adds all nodes reporting the Ready condition
-- Time series shows stability or fluctuations in node readiness
-- A flat horizontal line indicates stable node health
+**Description:** The condition of a cluster node.
+
+**Tags:**`condition` `node` `status`.
 
 ---
 
@@ -275,18 +245,12 @@ sum:kubernetes_state.node.status{status:ready}
 **query** :
 
 ```
-sum:kubernetes_state.node.status{status:not_ready}
+sum:kubernetes_state.node.by_condition{condition:not-ready,status:true}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Nodes not Ready)
-
-**Datadog Aggregation Logic:**
-
-- **sum**: counts nodes not reporting Ready status
-- Absence of values (y = 0) means **all nodes are healthy**
-- Useful for detecting node failures, crashes, or network isolation
 
 ---
 
@@ -308,19 +272,14 @@ sum:kubernetes_state.node.status{status:not_ready}
 **query** :
 
 ```
-100 - avg:system.cpu.idle{*} by {host}
+100 - avg:system.cpu.idle{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Percentage (% CPU utilization per node)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages CPU idle time per node
-- Datadog converts idle% → CPU utilization% (100 - idle%)
-- Shows actual CPU load on each node
-- Used to detect nodes under high processing pressure
+**Description:** Percent of time the CPU spent in an idle state.
 
 ---
 
@@ -328,26 +287,19 @@ sum:kubernetes_state.node.status{status:not_ready}
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `system.mem.used`
-  - `system.mem.total`
+- Metrics used: `system.mem.pct_usable`
 
 **query** :
 
 ```
-100 * avg:system.mem.used{*} by {host} / avg:system.mem.total{*} by {host}
+1 - avg:system.mem.pct_usable{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Percentage (% memory utilization)
+**Unit** : fraction
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages memory usage and capacity per node
-- Datadog computes utilization% internally
-- Helps identify nodes close to memory saturation
+**Description:** The amount of usable physical RAM as a fraction of the total.
 
 ---
 
@@ -355,23 +307,19 @@ sum:kubernetes_state.node.status{status:not_ready}
 
 **Metric(s):**
 
-- Metrics used: `container.cpu.usage` (summed per node)
+- Metrics used: `kubernetes.cpu.usage.total`
 
 **query** :
 
 ```
-avg:container.cpu.usage{kube_node:*} by {kube_node}
+sum:kubernetes.cpu.usage.total{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Cores
+**Unit** : nanocore
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages CPU usage of all containers on each node
-- Shows how much CPU is actually consumed (not requested)
-- Useful for comparing real utilization vs. node capacity
+**Description:** The number of cores used
 
 ---
 
@@ -379,23 +327,19 @@ avg:container.cpu.usage{kube_node:*} by {kube_node}
 
 **Metric(s):**
 
-- Metrics used: `container.memory.usage`
+- Metrics used: `kubernetes.memory.usage`
 
 **query** :
 
 ```
-avg:container.memory.usage{kube_node:*} by {kube_node}
+sum:kubernetes.memory.usage{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : GiB
+**Unit** : byte
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages container-level memory usage per node
-- Shows real memory used by workloads
-- Useful for spotting memory-heavy nodes or memory leaks
+**Description:** The amount of memory used
 
 ---
 
@@ -408,18 +352,14 @@ avg:container.memory.usage{kube_node:*} by {kube_node}
 **query** :
 
 ```
-sum:kubernetes.cpu.requests{*} by {node}
+sum:kubernetes.cpu.requests{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Cores
+**Unit** : core
 
-**Datadog Aggregation Logic:**
-
-- **sum**: sums requested CPU of all pods scheduled on a node
-- Shows how much CPU is reserved (not necessarily used)
-- Helps detect scheduling pressure and overcommitment
+**Description:** The requested cpu cores
 
 ---
 
@@ -432,18 +372,14 @@ sum:kubernetes.cpu.requests{*} by {node}
 **query** :
 
 ```
-sum:kubernetes.memory.requests{*} by {node}
+sum:kubernetes.memory.requests{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : GiB
+**Unit** : byte
 
-**Datadog Aggregation Logic:**
-
-- **sum**: totals memory requested by pods on each node
-- Shows guaranteed memory reservation for workloads
-- Useful for detecting nodes reaching request saturation
+**Description:** The requested memory
 
 ---
 
@@ -451,27 +387,21 @@ sum:kubernetes.memory.requests{*} by {node}
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `kubernetes.cpu.requests`
-  - `kubernetes.cpu.capacity`
+- Metrics used: `kubernetes_state.container.cpu_requested`
 
 **query** :
 
 ```
-100 * (sum:kubernetes.cpu.requests{*} by {node} / sum:kubernetes.cpu.capacity{*} by {node})
+(sum:kubernetes_state.container.cpu_requested{*} / sum:kubernetes_state.node.cpu_capacity{*}) * 100
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Percentage (% of CPU requests vs node capacity)
 
-**Datadog Aggregation Logic:**
+**Description:** The value of CPU requested by a container.
 
-- **sum**: aggregates CPU requests and capacity per node
-- Datadog computes request-to-capacity % = (requests / capacity) × 100
-- Helps identify overcommitted nodes
-- Values > 100% show CPU over-provisioning
+**Tags:**`kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -491,20 +421,16 @@ sum:kubernetes.memory.requests{*} by {node}
 **query** :
 
 ```
-100 * (sum:kubernetes.cpu.requests{*} by {node} / sum:kubernetes.cpu.capacity{*} by {node})
+sum:kubernetes_state.container.cpu_requested{*} / sum:kubernetes_state.node.cpu_capacity{*} * 100
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Percentage (% CPU requests compared to node CPU capacity)
 
-**Datadog Aggregation Logic:**
+**Description:** The value of CPU requested by a container.
 
-- **sum**: aggregates CPU requests and CPU capacity per node
-- Datadog divides total CPU requests by total node CPU capacity
-- Multiplies by 100 to convert to %
-- Shows how much of each node’s CPU is reserved
-- Useful for detecting scheduling pressure or CPU overcommitment
+**Tags:** `kube_namespace` `pod_name` `kube_container_name` `node` `resource` `unit` (`env` `service` `version` from standard labels)
 
 ---
 
@@ -520,18 +446,14 @@ sum:kubernetes.memory.requests{*} by {node}
 **query** :
 
 ```
-100 * (sum:system.fs.used{*} by {kube_cluster_name} / sum:system.fs.total{*} by {kube_cluster_name})
+avg:kubernetes.node.filesystem.usage_pct{*} * 100
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Percentage (% filesystem utilization)
+**Unit** : fraction
 
-**Datadog Aggregation Logic:**
-
-- **sum**: aggregates filesystem usage across all nodes in the cluster
-- Datadog computes utilization = (used / total) × 100
-- Helps identify clusters with disk pressure or approaching storage limits
+**Description:** The percentage of disk space used at node level
 
 ---
 
@@ -547,19 +469,14 @@ sum:kubernetes.memory.requests{*} by {node}
 **query** :
 
 ```
-100 * (sum:system.mem.used{*} by {kube_cluster_name} / sum:system.mem.total{*} by {kube_cluster_name})
+avg:kubernetes.memory.usage_pct{*} * 100
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Percentage (% of memory used in cluster)
+**Unit** : fraction
 
-**Datadog Aggregation Logic:**
-
-- **sum**: totals memory usage and total memory across nodes
-- Datadog computes a cluster-level memory utilization percentage
-- Useful for cluster-wide capacity planning
-- Detects memory saturation risks
+**Description:** The percentage of memory used per pod (memory limit must be set)
 
 ---
 
@@ -578,19 +495,14 @@ Datadog internally calculates CPU utilization.
 **query** :
 
 ```
-100 - avg:system.cpu.idle{*} by {kube_cluster_name}
+100 - avg:system.cpu.idle{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Percentage (% CPU usage across the entire cluster)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages idle CPU time across all nodes
-- CPU utilization = 100 - idle%
-- Shows overall cluster CPU consumption
-- Helps identify cluster-wide compute pressure
+**Description:** Percent of time the CPU spent in an idle state.
 
 ## Pod and Containers
 
@@ -600,23 +512,21 @@ Datadog internally calculates CPU utilization.
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.memory.allocatable`
+- Metrics used: `kubernetes_state.node.memory_allocatable`
 
 **query** :
 
 ```
-avg:kubernetes.memory.allocatable{*} by {node}
+avg:kubernetes_state.node.memory_allocatable{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : GiB (Allocatable memory per node)
 
-**Datadog Aggregation Logic:**
+**Description:** The allocatable memory of a node that is available for scheduling.
 
-- **avg**: returns allocatable memory reported by each node
-- Allocatable memory = memory available to pods after reserving kubelet/system overhead
-- Used to understand real scheduling capacity per node
+**Tags:**`node` `resource` `unit`.
 
 ---
 
@@ -624,23 +534,19 @@ avg:kubernetes.memory.allocatable{*} by {node}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.count`
+- Metrics used: `kubernetes.pods.running`
 
 **query** :
 
 ```
-sum:kubernetes_state.pod.count{*} by {node}
+top(sum:kubernetes.pods.running{*}, 50, 'mean', 'desc')
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Number of pods running on each node)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts all pods assigned to each node
-- Shows scheduling distribution and node load
-- Helps detect pod imbalance or over-scheduling on specific nodes
+**Description:** The number of running pods
 
 ---
 
@@ -653,18 +559,16 @@ sum:kubernetes_state.pod.count{*} by {node}
 **query** :
 
 ```
-sum:kubernetes_state.pod.ready{*} by {node}
+sum:kubernetes_state.pod.ready{condition:true}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Pods in Ready state per node)
 
-**Datadog Aggregation Logic:**
+**Description:** Describes whether the pod is ready to serve requests.
 
-- **sum**: counts pods that report Ready condition on each node
-- Helps evaluate node health and stability
-- A low number on a node may indicate pod issues or node pressure
+**Tags:** `node` `kube_namespace` `pod_name` `condition` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -677,18 +581,14 @@ sum:kubernetes_state.pod.ready{*} by {node}
 **query** :
 
 ```
-sum:kubernetes.containers.running{*} by {node}
+sum:kubernetes.containers.running{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Running containers per node)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts active containers per node
-- Helps understand container density and workload pressure
-- A higher value often correlates with more pods on the node
+**Description:** The number of running containers
 
 ## Events and Certificates
 
@@ -703,18 +603,12 @@ sum:kubernetes.containers.running{*} by {node}
 **query** :
 
 ```
-sum:kubernetes_state.event.count{*} by {node}
+count
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Number of Kubernetes events per node)
-
-**Datadog Aggregation Logic:**
-
-- **sum**: counts all Kubernetes events originating from each node
-- Events include pod failures, scheduling issues, restarts, eviction warnings, etc.
-- Used to detect noisy nodes, instability, or node-level error patterns
 
 ---
 
@@ -769,13 +663,6 @@ min:kubernetes.kubelet.certificate.expiration{*} by {node}
 **Type** : Gauge (alert table)
 
 **Unit** : Seconds or Timestamp (time until certificate expires)
-
-**Datadog Aggregation Logic:**
-
-- **min**: shows the lowest remaining certificates lifetime per node
-- Datadog flags certificates expiring in **< 1 hour**
-- Used for security posture and preventing kubelet authentication failures
-- If no data appears, certificates are healthy and not nearing expiration
 
 ---
 
@@ -783,88 +670,123 @@ min:kubernetes.kubelet.certificate.expiration{*} by {node}
 
 ![alt text](./screenshots/node-overview/image-6.png)
 
-### **Events per node**
+---
+
+### **Allocatable Pods per Node**
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.event.count`
+- Metrics used:
 
-**query** :
+  - `kubernetes_state.node.pods_allocatable`
+
+**Query:**
 
 ```
-sum:kubernetes_state.event.count{*} by {node}
+avg:kubernetes_state.node.pods_allocatable{*}
 ```
 
-**Type** : Gauge (time series)
+**Type:** Gauge (time series)
 
-**Unit** : Count (Number of Kubernetes events per node)
+**Unit:** Count (Maximum number of pods that can be scheduled on each node)
 
-**Datadog Aggregation Logic:**
+**Description:** The allocatable memory of a node that is available for scheduling.
 
-- **sum**: counts all Kubernetes events originating from each node
-- Events include pod failures, scheduling issues, restarts, eviction warnings, etc.
-- Used to detect noisy nodes, instability, or node-level error patterns
+**Tags:**`node` `resource` `unit`.
 
 ---
 
-### **Event logs per node**
+### **Allocatable CPU Cores per Node**
 
 **Metric(s):**
 
-- Event table is not based on a single metric; it is pulled from:
+- Metrics used:
 
-  - `kubernetes_state.event.*`
-  - Datadog Kubernetes Integration event stream
-  - Sources: Pods, DaemonSets, ReplicaSets, Deployments, Nodes, etc.
+  - `kubernetes_state.node.cpu_allocatable`
 
-**query** :
+**Query:**
 
 ```
-kubernetes_state.event.* (Event Stream)
+avg:kubernetes_state.node.cpu_allocatable{*}
 ```
 
-**Type** : Log/Event Stream Table
+**Type:** Gauge (time series)
 
-**Unit** : N/A (Events are textual records)
+**Unit:** Cores (CPU allocatable capacity per node)
 
-**Datadog Aggregation Logic:**
+**Description:** The allocatable CPU of a node that is available for scheduling.
 
-- Datadog collects Kubernetes events from the API server
-- Groups them by **source**, **object**, **node**, and **timestamp**
-- Displays events such as:
+**Tags:** `node` `resource` `unit`.
 
-  - Pod scheduling errors
-  - CrashLoopBackOff events
-  - ReplicaSet scale events
-  - Node pressure warnings
-  - Certificate issues
+### **Allocatable CPU sort ASC**
 
-- Helps debug cluster issues in real-time
+**Metric(s):**
+
+- Metrics used:
+
+  - `kubernetes_state.node.cpu_allocatable`
+
+**Query:**
+
+```
+avg:kubernetes_state.node.cpu_allocatable{*}
+```
+
+**Type:** Top List (sorted in ascending order)
+
+**Unit:** Cores
+
+**Description:** The allocatable CPU of a node that is available for scheduling.
+
+**Tags:**`node` `resource` `unit`.
 
 ---
 
-### **Kubelet certificates expirations (<1 hour left)**
+## **Allocatable Pods sort ASC**
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.kubelet.certificate.expiration`
+- Metrics used:
 
-**query** :
+  - `kubernetes_state.node.pods_allocatable`
+
+**Query:**
 
 ```
-min:kubernetes.kubelet.certificate.expiration{*} by {node}
+avg:kubernetes_state.node.pods_allocatable{*}
 ```
 
-**Type** : Gauge (alert table)
+**Type:** Top List (sorted ascending)
 
-**Unit** : Seconds or Timestamp (time until certificate expires)
+**Unit:** Count (Pods allocatable per node)
 
-**Datadog Aggregation Logic:**
+**Description:** The allocatable memory of a node that is available for scheduling.
 
-- **min**: shows the lowest remaining certificates lifetime per node
-- Datadog flags certificates expiring in **< 1 hour**
-- Used for security posture and preventing kubelet authentication failures
-- If no data appears, certificates are healthy and not nearing expiration
+**Tags:**`node` `resource` `unit`.
+
+---
+
+### **Allocatable Memory sort ASC**
+
+**Metric(s):**
+
+- Metrics used:
+
+  - `kubernetes_state.node.memory_allocatable`
+
+**Query:**
+
+```
+avg:kubernetes_state.node.memory_allocatable{*}
+```
+
+**Type:** Top List (sorted ascending)
+
+**Unit:** GiB (Allocatable memory)
+
+**Description:** The allocatable memory of a node that is available for scheduling.
+
+**Tags:** `node` `resource` `unit`.
 
 ---
 
@@ -905,27 +827,19 @@ avg:system.net.bytes_rcvd{*} by {host}
 
 - Metrics used:
 
-  - `system.net.bytes_sent`
+  - `kubernetes.network.rx_bytes`
 
 **query** :
 
 ```
-avg:system.net.bytes_sent{*} by {host}
+sum:kubernetes.network.rx_bytes{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Megabytes/second
+**Unit** : byte/second
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages outbound network traffic
-- Shows how much data each node is sending out
-- Useful for identifying:
-
-  - nodes sending logs
-  - nodes handling egress traffic
-  - network congestion issues
+**Description:** The amount of bytes per second received
 
 ---
 
@@ -935,26 +849,19 @@ avg:system.net.bytes_sent{*} by {host}
 
 - Metrics used:
 
-  - `system.io.rbytes`
+  - `kubernetes.io.read_bytes`
 
 **query** :
 
 ```
-avg:system.io.rbytes{*} by {host}
+sum:kubernetes.io.read_bytes{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Kilobytes/second or Megabytes/second (Datadog auto-scales)
+**Unit** : bytes
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages disk read bytes per second
-- Shows how much data is being read from disk on each node
-- Helps detect:
-
-  - I/O-bound workloads
-  - slow disks or overloaded storage
+**Description:** The amount of bytes read from the disk
 
 ---
 
@@ -962,28 +869,18 @@ avg:system.io.rbytes{*} by {host}
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `system.io.wbytes`
+- Metrics used: `kubernetes.io.write_bytes`
 
 **query** :
 
 ```
-avg:system.io.wbytes{*} by {host}
+sum:kubernetes.io.write_bytes{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Kilobytes/second or Megabytes/second
+**Unit** : byte
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages disk write throughput
-- Shows how much data is being written to disk
-- Helps detect:
-
-  - log-heavy workloads
-  - applications generating large write bursts
-  - potential disk throttling or disk pressure
+**Description:** The amount of bytes written to the disk
 
 ---

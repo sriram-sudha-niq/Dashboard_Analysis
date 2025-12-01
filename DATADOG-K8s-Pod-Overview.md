@@ -18,18 +18,14 @@ https://us5.datadoghq.com/dash/integration/180/kubernetes-pods-overview?fromUser
 **query** :
 
 ```
-avg:kubernetes.pods.running{*}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Number of running pods)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages the number of running pods across all nodes/namespaces
-- Shows total running pods over time
-- Helps track workload stability and detect sudden drops/increases
+**Description:** The number of running pods
 
 ---
 
@@ -42,7 +38,7 @@ avg:kubernetes.pods.running{*}
 **query** :
 
 ```
-change(avg:kubernetes.pods.running{*}), week
+week_before(sum:kubernetes.pods.running{*}), sum:kubernetes.pods.running{*}
 ```
 
 (Note: Datadog uses an internal _change over time_ function)
@@ -51,12 +47,7 @@ change(avg:kubernetes.pods.running{*}), week
 
 **Unit** : Count difference over 1 week
 
-**Datadog Aggregation Logic:**
-
-- **avg**: computes running pods baseline
-- **change()**: calculates difference compared to the same time last week
-- Shows which workloads gained or lost pods across the last week
-- Useful for trend analysis and scaling pattern visibility
+**Description:** The number of running pods
 
 ---
 
@@ -64,35 +55,22 @@ change(avg:kubernetes.pods.running{*}), week
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `kubernetes_state.pod.status_phase{phase:failed}`
-  - `kubernetes_state.pod.status_phase{phase:pending}`
-  - `kubernetes_state.pod.status_phase{phase:unknown}` (sometimes)
+- Metrics used: `kubernetes_state.pod.status_phase`
 
 **query** :
 Failed:
 
 ```
-sum:kubernetes_state.pod.status_phase{phase:failed} by {kube_namespace}
-```
-
-Pending:
-
-```
-sum:kubernetes_state.pod.status_phase{phase:pending} by {kube_namespace}
+sum:kubernetes_state.pod.status_phase{!pod_phase:running,!pod_phase:succeeded}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of bad-phase pods per namespace)
 
-**Datadog Aggregation Logic:**
+**Description:** The pods current phase.
 
-- **sum**: counts pods in failure or pending phases
-- Grouped by namespace
-- Helps identify problematic namespaces
-- Used for debugging deployment failures, resource shortage, or container errors
+**Tags:**`node` `kube_namespace` `pod_name` `pod_phase` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -100,24 +78,19 @@ sum:kubernetes_state.pod.status_phase{phase:pending} by {kube_namespace}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.running`
+- Metrics used: `kubernetes.pods.running`
 
 **query** :
 
 ```
-avg:kubernetes_state.pod.running{*} by {kube_namespace}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Running pods per namespace)
 
-**Datadog Aggregation Logic:**
-
-- **avg**: smooths the time series across the cluster
-- Grouping by **{kube_namespace}** shows how many pods each namespace is running
-- Useful for workload segmentation and capacity analysis
-- Helps visualize namespace-level scaling behavior
+**Description:** The number of running pods
 
 ## Pods
 
@@ -127,23 +100,19 @@ avg:kubernetes_state.pod.running{*} by {kube_namespace}
 
 **Metric(s):**
 
-- Metrics used: `container.cpu.usage`
+- Metrics used: `kubernetes.cpu.usage.total`
 
 **query** :
 
 ```
-top(container.cpu.usage{*} by {pod_name}, 10)
+sum:kubernetes.cpu.usage.total{!pod_name:no_pod}
 ```
 
 **Type** : Gauge
 
-**Unit** : Millicores (mCores)
+**Unit** : nanocore
 
-**Datadog Aggregation Logic:**
-
-- **top()**: selects highest CPU-consuming pods
-- **container.cpu.usage** reflects actual CPU used by containers
-- Helps identify CPU-heavy pods or noisy neighbors
+**Description:** The number of cores used
 
 ---
 
@@ -151,23 +120,19 @@ top(container.cpu.usage{*} by {pod_name}, 10)
 
 **Metric(s):**
 
-- Metrics used: `container.cpu.usage`
+- Metrics used: `kubernetes.cpu.usage.total`
 
 **query** :
 
 ```
-avg:container.cpu.usage{*} by {pod_name}
+sum:kubernetes.cpu.usage.total{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Cores / mCores
+**Unit** : nanocore
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages CPU usage per pod over time
-- Shows CPU consumption trend for each pod
-- Useful for identifying pods with spikes or sustained high CPU load
+**Description:** The number of cores used
 
 ---
 
@@ -175,46 +140,37 @@ avg:container.cpu.usage{*} by {pod_name}
 
 **Metric(s):**
 
-- Metrics used: `container.memory.usage`
+- Metrics used: `kubernetes.memory.usage`
 
 **query** :
 
 ```
-top(container.memory.usage{*} by {pod_name}, 10)
+sum:kubernetes.memory.usage{!pod_name:no_pod}
 ```
 
 **Type** : Gauge
 
-**Unit** : GiB (Gigabytes)
+**Unit** : byte
 
-**Datadog Aggregation Logic:**
-
-- **top()**: lists pods with highest memory usage
-- Useful to detect pods consuming excessive memory or leaking
-
----
+## **Description:** The amount of memory used
 
 ### **Memory Usage by Pod**
 
 **Metric(s):**
 
-- Metrics used: `container.memory.usage`
+- Metrics used: `kubernetes.memory.usage`
 
 **query** :
 
 ```
-avg:container.memory.usage{*} by {pod_name}
+sum:kubernetes.memory.usage{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : GiB / MiB
+**Unit** : byte
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages pod memory usage across the time window
-- Helps identify pods with high memory footprint
-- Useful for detecting memory leaks
+**Description:** The amount of memory used
 
 ---
 
@@ -222,22 +178,19 @@ avg:container.memory.usage{*} by {pod_name}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.running`
+- Metrics used: `kubernetes.pods.running`
 
 **query** :
 
 ```
-sum:kubernetes_state.pod.running{*} by {kube_namespace}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Pods running per namespace)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts all running pods per namespace
-- Helps visualize distribution of workloads by namespace
+**Description:** The number of running pods
 
 ---
 
@@ -250,17 +203,16 @@ sum:kubernetes_state.pod.running{*} by {kube_namespace}
 **query** :
 
 ```
-sum:kubernetes_state.pod.ready{*} by {node}
+sum:kubernetes_state.pod.ready{condition:true}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count
 
-**Datadog Aggregation Logic:**
+**Description:** Describes whether the pod is ready to serve requests.
 
-- **sum**: counts pods in Ready state for each node
-- Helps identify node-level readiness or imbalance issues
+**Tags:** `node` `kube_namespace` `pod_name` `condition` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -268,33 +220,23 @@ sum:kubernetes_state.pod.ready{*} by {node}
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `kubernetes_state.pod.status_phase{phase:failed}`
-  - `kubernetes_state.pod.status_phase{phase:pending}`
+- Metrics used: `kubernetes_state.pod.ready`
 
 **query** :
 
 Failed:
 
 ```
-sum:kubernetes_state.pod.status_phase{phase:failed} by {kube_namespace}
-```
-
-Pending:
-
-```
-sum:kubernetes_state.pod.status_phase{phase:pending} by {kube_namespace}
+exclude_null(sum:kubernetes_state.pod.ready{condition:false,!pod_phase:succeeded})
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Failed/pending pods per namespace)
 
-**Datadog Aggregation Logic:**
+**Description:** Describes whether the pod is ready to serve requests.
 
-- **sum**: counts pods in undesirable phases
-- Quickly identifies namespaces experiencing failures or restarts
+**Tags:**`node` `kube_namespace` `pod_name` `condition` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -302,23 +244,19 @@ sum:kubernetes_state.pod.status_phase{phase:pending} by {kube_namespace}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.pod.running`
+- Metrics used: `kubernetes.pods.running`
 
 **query** :
 
 ```
-sum:kubernetes_state.pod.running{*} by {runtime_class}
+sum:kubernetes.pods.running{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts running pods grouped by runtime class
-- If runtime class is not defined → all pods show under “N/A”
-- Helps identify which container runtime classes are used (e.g., runc, gvisor)
+**Description:** The number of running pods
 
 ---
 
@@ -331,24 +269,14 @@ sum:kubernetes_state.pod.running{*} by {runtime_class}
 **query** :
 
 ```
-sum:kubernetes_state.pod.status_phase{*} by {phase}
+sum:kubernetes_state.pod.status_phase{pod_phase:pending}
 ```
 
 **Type** : Gauge (stacked bar chart)
 
 **Unit** : Count (Pods per phase)
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts pods in each lifecycle phase:
-
-  - running
-  - pending
-  - succeeded
-  - failed
-  - unknown
-
-- Helps understand overall pod lifecycle health in the cluster
+**Description:** The pods current phase. Tags:`node` `kube_namespace` `pod_name` `pod_phase` (`env` `service` `version` from standard labels).
 
 ## Container
 
@@ -358,23 +286,21 @@ sum:kubernetes_state.pod.status_phase{*} by {phase}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.container.status_report.count`
+- Metrics used: `kubernetes_state.container.ready`
 
 **query** :
 
 ```
-sum:kubernetes_state.container.status_report.count{*} by {state}
+sum:kubernetes_state.container.ready{*}
 ```
 
 **Type** : Gauge (stacked time series)
 
 **Unit** : Count (Containers by lifecycle state)
 
-**Datadog Aggregation Logic:**
+**Description:** Describes whether the containers readiness check succeeded.
 
-- **sum**: counts containers in each state
-- States include: `running`, `waiting`, `terminated`, `ready`
-- Shows overall container lifecycle distribution in the cluster
+**Tags:** `kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -382,22 +308,17 @@ sum:kubernetes_state.container.status_report.count{*} by {state}
 
 **Metric(s):**
 
-- Metrics used: `kubernetes_state.container.last_terminated_reason{reason:OOMKilled}`
+- Metrics used: `kubernetes.containers.state.terminated`
 
 **query** :
 
 ```
-sum:kubernetes_state.container.last_terminated_reason{reason:OOMKilled} by {pod_name}
+sum:kubernetes.containers.state.terminated
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Number of OOMKilled containers per pod)
-
-**Datadog Aggregation Logic:**
-
-- **sum**: counts containers killed by Out-Of-Memory
-- Helps identify pods with memory leaks or insufficient memory requests
 
 ---
 
@@ -406,22 +327,21 @@ sum:kubernetes_state.container.last_terminated_reason{reason:OOMKilled} by {pod_
 **Metric(s):**
 
 - Metrics used:
-  `kubernetes_state.pod.container.waiting{reason:CrashLoopBackOff}`
+  `kubernetes_state.container.status_report.count.waiting`
 
 **query** :
 
 ```
-sum:kubernetes_state.pod.container.waiting{reason:CrashLoopBackOff} by {pod_name}
+sum:kubernetes_state.container.status_report.count.waiting{reason:crashloopbackoff}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Count (Containers stuck in CrashLoopBackOff)
 
-**Datadog Aggregation Logic:**
+**Description:** Describes the reason the container is currently in waiting state.
 
-- **sum**: counts containers whose `waiting.reason = CrashLoopBackOff`
-- Shows pods repeatedly restarting because of startup failures
+**Tags:**`kube_namespace` `pod_name` `kube_container_name` `reason` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -429,23 +349,21 @@ sum:kubernetes_state.pod.container.waiting{reason:CrashLoopBackOff} by {pod_name
 
 **Metric(s):**
 
-- Metrics used: `kubernetes.containers.restarts`
+- Metrics used: `kubernetes_state.container.restarts`
 
 **query** :
 
 ```
-sum:kubernetes.containers.restarts{*} by {pod_name}
+sum:kubernetes_state.container.restarts{*}
 ```
 
 **Type** : Gauge
 
 **Unit** : Count (Total number of container restarts)
 
-**Datadog Aggregation Logic:**
+**Description:** The number of container restarts per container.
 
-- **sum**: adds restart count per pod
-- Useful for detecting unstable workloads
-- Helps identify pods failing frequently over time
+**Tags:**`kube_namespace` `pod_name` `kube_container_name` (`env` `service` `version` from standard labels).
 
 ---
 
@@ -453,23 +371,19 @@ sum:kubernetes.containers.restarts{*} by {pod_name}
 
 **Metric(s):**
 
-- Metrics used: `container.cpu.usage`
+- Metrics used: `kubernetes.cpu.usage.total`
 
 **query** :
 
 ```
-avg:container.cpu.usage{*} by {container_id}
+sum:kubernetes.cpu.usage.total{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : Cores / Millicores
+**Unit** : nanocore
 
-**Datadog Aggregation Logic:**
-
-- **avg**: computes average CPU consumption per container
-- Helps identify containers using excessive CPU
-- Highlights noisy neighbors or misconfigured limits
+**Description:** The number of cores used
 
 ---
 
@@ -477,22 +391,19 @@ avg:container.cpu.usage{*} by {container_id}
 
 **Metric(s):**
 
-- Metrics used: `container.memory.usage`
+- Metrics used: `kubernetes.memory.usage`
 
 **query** :
 
 ```
-avg:container.memory.usage{*} by {container_id}
+sum:kubernetes.memory.usage{*}
 ```
 
 **Type** : Gauge (time series)
 
-**Unit** : MiB / GiB
+**Unit** : byte
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages container memory usage
-- Helps detect memory leaks or containers consistently exceeding requests
+Description: The amount of memory used
 
 ---
 
@@ -500,34 +411,19 @@ avg:container.memory.usage{*} by {container_id}
 
 **Metric(s):**
 
-- Metrics used:
-
-  - `container.net.bytes_rcvd`
-  - `container.net.bytes_sent`
+- Metrics used: `kubernetes.network.rx_bytes`
 
 **query** :
 
-Received:
-
 ```
-avg:container.net.bytes_rcvd{*} by {pod_name}
-```
-
-Sent:
-
-```
-avg:container.net.bytes_sent{*} by {pod_name}
+sum:kubernetes.network.rx_bytes{*}
 ```
 
 **Type** : Gauge (time series)
 
 **Unit** : Bytes/second
 
-**Datadog Aggregation Logic:**
-
-- **avg**: averages network throughput per pod
-- Shows network activity for each workload
-- Useful for identifying chatty or bandwidth-heavy pods
+**Description:** The amount of bytes per second received
 
 ---
 
@@ -535,19 +431,17 @@ avg:container.net.bytes_sent{*} by {pod_name}
 
 **Metric(s):**
 
-- Metrics used: `container.net.errors`
+- Metrics used: `kubernetes.network.rx_errors`
 
 **query** :
 
 ```
-sum:container.net.errors{*} by {pod_name}
+sum:kubernetes.network.rx_errors{*}
+
 ```
 
 **Type** : Gauge
 
 **Unit** : Errors/second
 
-**Datadog Aggregation Logic:**
-
-- **sum**: counts network-level errors coming from container network interfaces
-- Helps detect failing CNI plugins or network connectivity issues
+**Description:** The amount of rx errors per second
