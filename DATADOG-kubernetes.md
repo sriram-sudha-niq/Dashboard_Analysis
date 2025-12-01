@@ -131,7 +131,7 @@ https://us5.datadoghq.com/dash/integration/200/kubernetes-nodes-overview?fromUse
 
 # Data analysis
 
-![Overview dashboard](image50.png)
+![Overview dashboard](./screenshots/image50.png)
 
 ### cluster
 
